@@ -137,7 +137,7 @@
                     }
                     ?>
 
-                    <li>
+                    <li class="<?php echo $class; ?>" <?php echo $class == 'template-inactive' ? 'style="pointer-events: none;"' : ''; ?> >
                         <a href="#" @click.prevent="createForm('<?php echo $key; ?>', $event.target)" title="<?php echo esc_attr( $title ); ?>">
                             <div class="title"><?php echo $template->get_title(); ?></div>
                             <div class="description"><?php echo $template->get_description(); ?></div>
