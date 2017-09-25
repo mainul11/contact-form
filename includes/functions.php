@@ -119,7 +119,7 @@ function weforms_insert_entry( $args, $fields = array() ) {
     $defaults = array(
         'form_id'     => 0,
         'user_id'     => get_current_user_id(),
-        'user_ip'     => ip2long( wpuf_get_client_ip() ),
+        'user_ip'     => ip2long( weforms_get_client_ip() ),
         'user_device' => $browser['name'] . '/' . $browser['platform'],
         'referer'     => $_SERVER['HTTP_REFERER'],
         'created_at'  => current_time( 'mysql' )
@@ -300,14 +300,14 @@ function weforms_count_form_entries( $form_id, $status = 'publish' ) {
  * @return array
  */
 function weforms_get_entry_columns( $form_id, $limit = 6 ) {
-    $fields  = wpuf_get_form_fields( $form_id );
+    $fields  = weforms()->form->get( $form_id )->get_fields();
     $columns = array();
 
     // filter by input types
     if ( $limit ) {
 
         $fields = array_filter( $fields, function($item) {
-            return in_array( $item['input_type'], array( 'text', 'name', 'select', 'radio', 'email', 'url' ) );
+            return in_array( $item['template'], array( 'text_field', 'name_field', 'dropdown_field', 'radio_field', 'email_address', 'url_field' ) );
         } );
     }
 
@@ -318,11 +318,11 @@ function weforms_get_entry_columns( $form_id, $limit = 6 ) {
     }
 
     // if passed 0/false, return all collumns
-    if ( ! $limit ) {
-        return $columns;
+    if ( $limit && sizeof($columns) > $limit ) {
+       $columns = array_slice( $columns, 0, $limit ); // max 6 columns
     }
 
-    return array_slice( $columns, 0, 6 ); // max 6 columns
+    return apply_filters('weforms_get_entry_columns', $columns, $form_id);
 }
 
 /**
@@ -333,7 +333,7 @@ function weforms_get_entry_columns( $form_id, $limit = 6 ) {
  * @return array
  */
 function weforms_get_form_field_labels( $form_id ) {
-    $fields  = wpuf_get_form_fields( $form_id );
+    $fields  = weforms()->form->get( $form_id )->get_fields();
     $exclude = array( 'step_start', 'section_break', 'recaptcha', 'shortcode', 'action_hook' );
 
     if ( ! $fields ) {
@@ -347,13 +347,13 @@ function weforms_get_form_field_labels( $form_id ) {
         }
 
         // exclude the fields
-        if ( in_array( $field['input_type'], $exclude ) ) {
+        if ( in_array( $field['template'], $exclude ) ) {
             continue;
         }
 
         $data[ $field['name'] ] = array(
             'label' => $field['label'],
-            'type'  => $field['input_type']
+            'type'  => $field['template']
         );
     }
 
@@ -386,7 +386,7 @@ function weforms_get_entry_data( $entry_id ) {
 
         } elseif ( $field['type'] == 'name' ) {
 
-            $data[ $meta_key ] = implode( ' ', explode( WPUF_Render_Form::$separator, $value ) );
+            $data[ $meta_key ] = implode( ' ', explode( WeForms::$field_separator, $value ) );
 
         } elseif ( in_array( $field['type'], array( 'image_upload', 'file_upload' ) ) ) {
 
@@ -410,7 +410,7 @@ function weforms_get_entry_data( $entry_id ) {
 
         } elseif ( in_array( $field['type'], array( 'checkbox', 'multiselect' ) ) ) {
 
-            $data[ $meta_key ] = explode( WPUF_Render_Form::$separator, $value );
+            $data[ $meta_key ] = explode( WeForms::$field_separator, $value );
 
         } elseif ( $field['type'] == 'map' ) {
 
@@ -629,7 +629,9 @@ function weforms_get_form_views( $form_id ) {
  * @return mixed
  */
 function weforms_get_settings( $key = '', $default = '' ) {
+
     $settings = get_option( 'weforms_settings', array() );
+    $settings = apply_filters( 'weforms_get_settings', $settings );
 
     if ( empty( $key ) ) {
         return $settings;
@@ -640,4 +642,155 @@ function weforms_get_settings( $key = '', $default = '' ) {
     }
 
     return $default;
+}
+
+/**
+ * Form access capability for forms
+ *
+ * @since 1.0.5
+ *
+ * @return string
+ */
+function weforms_form_access_capability() {
+    return apply_filters( 'weforms_form_access_capability', 'manage_options' );
+}
+
+/**
+ * Clear the buffer
+ *
+ * prevents ajax breakage and endless loading icon. A LIFE SAVER!!!
+ *
+ * @since 1.1.0
+ *
+ * @return void
+ */
+function weforms_clear_buffer() {
+    ob_clean();
+}
+
+/**
+ * Get the client IP address
+ *
+ * @since 1.1.0
+ *
+ * @return string
+ */
+function weforms_get_client_ip() {
+    $ipaddress = '';
+
+    if ( isset($_SERVER['HTTP_CLIENT_IP'] ) ) {
+        $ipaddress = $_SERVER['HTTP_CLIENT_IP'];
+    } else if ( isset( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
+        $ipaddress = $_SERVER['HTTP_X_FORWARDED_FOR'];
+    } else if ( isset( $_SERVER['HTTP_X_FORWARDED'] ) ) {
+        $ipaddress = $_SERVER['HTTP_X_FORWARDED'];
+    } else if ( isset( $_SERVER['HTTP_FORWARDED_FOR'] ) ) {
+        $ipaddress = $_SERVER['HTTP_FORWARDED_FOR'];
+    } else if ( isset( $_SERVER['HTTP_FORWARDED'] ) ) {
+        $ipaddress = $_SERVER['HTTP_FORWARDED'];
+    } else if ( isset( $_SERVER['REMOTE_ADDR'] ) ) {
+        $ipaddress = $_SERVER['REMOTE_ADDR'];
+    } else {
+        $ipaddress = 'UNKNOWN';
+    }
+
+    return $ipaddress;
+}
+
+/**
+ * Save form fields
+ *
+ * @since 1.1.0
+ *
+ * @param int $form_id
+ * @param array $field
+ * @param int $field_id
+ * @param int $order
+ *
+ * @return int ID of updated or inserted post
+ */
+function weforms_insert_form_field( $form_id, $field = array(), $field_id = null, $order = 0 ) {
+
+    $args = array(
+        'post_type'    => 'wpuf_input',
+        'post_parent'  => $form_id,
+        'post_status'  => 'publish',
+        'post_content' => maybe_serialize( wp_unslash( $field ) ),
+        'menu_order'   => $order
+    );
+
+    if ( $field_id ) {
+        $args['ID'] = $field_id;
+    }
+
+    if ( $field_id ) {
+        return wp_update_post( $args );
+    } else {
+        return wp_insert_post( $args );
+    }
+}
+
+/**
+ * Allowed upload extensions
+ *
+ * @return array
+ */
+function weforms_allowed_extensions() {
+    $extesions = array(
+        'images' => array('ext' => 'jpg,jpeg,gif,png,bmp', 'label' => __( 'Images', 'wpuf' )),
+        'audio'  => array('ext' => 'mp3,wav,ogg,wma,mka,m4a,ra,mid,midi', 'label' => __( 'Audio', 'wpuf' )),
+        'video'  => array('ext' => 'avi,divx,flv,mov,ogv,mkv,mp4,m4v,divx,mpg,mpeg,mpe', 'label' => __( 'Videos', 'wpuf' )),
+        'pdf'    => array('ext' => 'pdf', 'label' => __( 'PDF', 'wpuf' )),
+        'office' => array('ext' => 'doc,ppt,pps,xls,mdb,docx,xlsx,pptx,odt,odp,ods,odg,odc,odb,odf,rtf,txt', 'label' => __( 'Office Documents', 'wpuf' )),
+        'zip'    => array('ext' => 'zip,gz,gzip,rar,7z', 'label' => __( 'Zip Archives' )),
+        'exe'    => array('ext' => 'exe', 'label' => __( 'Executable Files', 'wpuf' )),
+        'csv'    => array('ext' => 'csv', 'label' => __( 'CSV', 'wpuf' ))
+    );
+
+    return apply_filters( 'weforms_allowed_extensions', $extesions );
+}
+
+/**
+ * Get form integration settings
+ *
+ * @since 1.1.0
+ *
+ * @param  int $form_id
+ *
+ * @return array
+ */
+function weforms_get_form_integrations( $form_id ) {
+    $integrations =  get_post_meta( $form_id, 'integrations', true );
+
+    if ( ! $integrations ) {
+        return array();
+    }
+
+    return $integrations;
+}
+
+/**
+ * Check if an integration is active
+ *
+ * @since 1.1.0
+ *
+ * @param  int $form_id
+ * @param  string $integration_id
+ *
+ * @return boolean
+ */
+function weforms_is_integration_active( $form_id, $integration_id ) {
+    $integrations = weforms_get_form_integrations( $form_id );
+
+    if ( ! $integrations ) {
+        return false;
+    }
+
+    foreach ($integrations as $id => $integration) {
+        if ( $integration_id == $id && $integration->enabled == true ) {
+            return $integration;
+        }
+    }
+
+    return false;
 }

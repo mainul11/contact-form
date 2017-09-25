@@ -5,7 +5,7 @@
  *
  * @package weForms\Integrations
  */
-class WeForms_Integration_Slack extends WPUF_Abstract_Integration {
+class WeForms_Integration_Slack extends WeForms_Abstract_Integration {
 
     /**
      * Initialize the plugin
@@ -36,7 +36,7 @@ class WeForms_Integration_Slack extends WPUF_Abstract_Integration {
      */
     public function send_notification( $entry_id, $form_id, $page_id, $form_settings ) {
 
-        $integration = wpuf_is_integration_active( $form_id, $this->id );
+        $integration = weforms_is_integration_active( $form_id, $this->id );
 
         if ( false === $integration ) {
             return;

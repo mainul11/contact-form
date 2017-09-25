@@ -74,7 +74,7 @@
                 <th class="col-entry-id">
                     <router-link :to="{ name: 'formEntriesSingle', params: { entryid: entry.id }}">#{{ entry.id }}</router-link>
                 </th>
-                <td v-for="(header, index) in columns">{{ entry.fields[index] }}</td>
+                <td v-for="(header, index) in columns"><span v-html="entry.fields[index]"></span></td>
                 <th class="col-entry-details">
                     <router-link :to="{ name: 'formEntriesSingle', params: { entryid: entry.id }}"><?php _e( 'Details', 'weforms' ); ?></router-link>
                 </th>
@@ -247,7 +247,7 @@
 
         <div class="wpuf-contact-form-entry-left">
             <div class="postbox">
-                <h2 class="hndle ui-sortable-handle"><span>{{ entry.info.form_title }} : Entry # {{ $route.params.entryid }}</span></h2>
+                <h2 class="hndle ui-sortable-handle"><span>{{ entry.meta_data.form_title }} : Entry # {{ $route.params.entryid }}</span></h2>
 
                 <div class="main">
                     <table v-if="hasFormFields" class="wp-list-table widefat fixed striped posts">
@@ -259,12 +259,12 @@
                                 <tr class="field-value">
                                     <td>
                                         <weforms-entry-gmap :lat="entry.meta_data[index]['lat']" :long="entry.meta_data[index]['long']" v-if="field.type == 'map'"></weforms-entry-gmap>
-                                        <div v-else-if="field.type === 'checkbox' || field.type === 'multiselect'">
+                                        <div v-else-if="field.type === 'checkbox_field' || field.type === 'multiple_select'">
                                             <ul style="margin: 0;">
-                                                <li v-for="item in entry.meta_data[index]">- {{ item }}</li>
+                                                <li v-for="item in field.value">- {{ item }}</li>
                                             </ul>
                                         </div>
-                                        <div v-else v-html="entry.meta_data[index]"></div>
+                                        <div v-else v-html="field.value"></div>
                                     </td>
                                 </tr>
                             </template>
@@ -291,22 +291,22 @@
                             <li>
                                 <span class="label"><?php _e( 'User IP', 'weforms' ); ?></span>
                                 <span class="sep"> : </span>
-                                <span class="value">{{ entry.info.ip }}</span>
+                                <span class="value">{{ entry.meta_data.ip_address }}</span>
                             </li>
                             <li>
                                 <span class="label"><?php _e( 'Page', 'weforms' ); ?></span>
                                 <span class="sep"> : </span>
-                                <span class="value"><a :href="entry.info.referer">{{ entry.info.referer }}</a></span>
+                                <span class="value"><a :href="entry.meta_data.referer">{{ entry.meta_data.referer }}</a></span>
                             </li>
-                            <li v-if="entry.info.user">
+                            <li v-if="entry.meta_data.user">
                                 <span class="label"><?php _e( 'From', 'weforms' ); ?></span>
                                 <span class="sep"> : </span>
-                                <span class="value">{{ entry.info.user }}</span>
+                                <span class="value">{{ entry.meta_data.user }}</span>
                             </li>
                             <li>
                                 <span class="label"><?php _e( 'Submitted On', 'weforms' ); ?></span>
                                 <span class="sep"> : </span>
-                                <span class="value">{{ entry.info.created }}</span>
+                                <span class="value">{{ entry.meta_data.created }}</span>
                             </li>
                         </ul>
                     </div>
@@ -382,21 +382,21 @@
             </tr>
             <tr v-for="(form, index) in items">
                 <th scope="row" class="check-column">
-                    <input type="checkbox" name="post[]" v-model="checkedItems" :value="form.ID">
+                    <input type="checkbox" name="post[]" v-model="checkedItems" :value="form.id">
                 </th>
                 <td class="title column-title has-row-actions column-primary page-title">
-                    <strong><router-link :to="{ name: 'edit', params: { id: form.ID }}">{{ form.post_title }}</router-link> <span v-if="form.post_status != 'publish'">({{ form.post_status }})</span></strong>
+                    <strong><router-link :to="{ name: 'edit', params: { id: form.id }}">{{ form.name }}</router-link> <span v-if="form.data.post_status != 'publish'">({{ form.data.post_status }})</span></strong>
 
                     <div class="row-actions">
-                        <span class="edit"><router-link :to="{ name: 'edit', params: { id: form.ID }}"><?php _e( 'Edit', 'weforms' ); ?></router-link> | </span>
+                        <span class="edit"><router-link :to="{ name: 'edit', params: { id: form.id }}"><?php _e( 'Edit', 'weforms' ); ?></router-link> | </span>
                         <span class="trash"><a href="#" v-on:click.prevent="deleteForm(index)" class="submitdelete"><?php _e( 'Delete', 'weforms' ); ?></a> | </span>
-                        <span class="duplicate"><a href="#" v-on:click.prevent="duplicate(form.ID, index)"><?php _e( 'Duplicate', 'weforms' ); ?></a> <template v-if="form.entries">|</template> </span>
-                        <router-link v-if="form.entries" :to="{ name: 'formEntries', params: { id: form.ID }}"><?php _e( 'View Entries', 'weforms' ); ?></router-link>
+                        <span class="duplicate"><a href="#" v-on:click.prevent="duplicate(form.id, index)"><?php _e( 'Duplicate', 'weforms' ); ?></a> <template v-if="form.entries">|</template> </span>
+                        <router-link v-if="form.entries" :to="{ name: 'formEntries', params: { id: form.id }}"><?php _e( 'View Entries', 'weforms' ); ?></router-link>
                     </div>
                 </td>
-                <td><code>[weforms id="{{ form.ID }}"]</code></td>
+                <td><code>[weforms id="{{ form.id }}"]</code></td>
                 <td>
-                    <router-link v-if="form.entries" :to="{ name: 'formEntries', params: { id: form.ID }}">{{ form.entries }}</router-link>
+                    <router-link v-if="form.entries" :to="{ name: 'formEntries', params: { id: form.id }}">{{ form.entries }}</router-link>
                     <span v-else>&mdash;</span>
                 </td>
                 <td>{{ form.views }}</td>
@@ -843,6 +843,20 @@
                                 <input type="checkbox" v-model="settings.credit">
                                 <?php _e( 'Show <em>powered by weForms</em> credit in form footer.', 'weforms' ); ?>
                             </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><?php _e( 'Form Permission', 'weforms' ); ?></th>
+                        <td>
+                            <select :disabled="!is_pro" v-model="settings.permission">
+                                <option value="manage_options"><?php _e( 'Admins Only', 'weforms' ); ?></option>
+                                <option value="edit_others_posts"><?php _e( 'Admins, Editors', 'weforms' ); ?></option>
+                                <option value="publish_posts"><?php _e( 'Admins, Editors, Authors', 'weforms' ); ?></option>
+                                <option value="edit_posts"><?php _e( 'Admins, Editors, Authors, Contributors', 'weforms' ); ?></option>
+                            </select>
+
+                            <p v-if="!is_pro" class="description"><?php _e( 'Available in PRO version.', 'weforms' ); ?></p>
+                            <p v-else class="description"><?php _e( 'Which user roles can access and create forms, manage form submissions.', 'weforms' ); ?></p>
                         </td>
                     </tr>
                 </table>

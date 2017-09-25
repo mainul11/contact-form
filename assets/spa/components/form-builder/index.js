@@ -10,6 +10,7 @@ weForms.routeComponents.FormEditComponent = {
             loading: false,
             activeTab: 'editor',
             activeSettingsTab: 'form',
+            activePaymentTab: 'paypal',
         };
     },
 
@@ -64,6 +65,10 @@ weForms.routeComponents.FormEditComponent = {
 
         settings: function() {
             return this.$store.state.settings;
+        },
+
+        payment: function() {
+            return this.$store.state.payment;
         }
     },
 
@@ -109,6 +114,14 @@ weForms.routeComponents.FormEditComponent = {
 
         makeActiveSettingsTab: function(val) {
             this.activeSettingsTab = val;
+        },
+
+        isActivePaymentTab: function(val) {
+            return this.activePaymentTab === val;
+        },
+
+        makeActivePaymentTab: function(val) {
+            this.activePaymentTab = val;
         },
 
         fetchForm: function() {
@@ -173,6 +186,7 @@ weForms.routeComponents.FormEditComponent = {
                     form_fields: JSON.stringify(self.form_fields),
                     notifications: JSON.stringify(self.notifications),
                     settings: JSON.stringify(self.settings),
+                    payment: JSON.stringify(self.payment),
                     integrations: JSON.stringify(self.integrations),
                 },
 

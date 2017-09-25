@@ -1,6 +1,6 @@
 /*!
-weForms - v1.0.3
-Generated: 2017-08-30 (1504109998873)
+weForms - v1.0.4
+Generated: 2017-09-24 (1506226262022)
 */
 
 ;(function($) {
@@ -97,6 +97,7 @@ weForms.routeComponents.FormEditComponent = {
             loading: false,
             activeTab: 'editor',
             activeSettingsTab: 'form',
+            activePaymentTab: 'paypal',
         };
     },
 
@@ -151,6 +152,10 @@ weForms.routeComponents.FormEditComponent = {
 
         settings: function() {
             return this.$store.state.settings;
+        },
+
+        payment: function() {
+            return this.$store.state.payment;
         }
     },
 
@@ -196,6 +201,14 @@ weForms.routeComponents.FormEditComponent = {
 
         makeActiveSettingsTab: function(val) {
             this.activeSettingsTab = val;
+        },
+
+        isActivePaymentTab: function(val) {
+            return this.activePaymentTab === val;
+        },
+
+        makeActivePaymentTab: function(val) {
+            this.activePaymentTab = val;
         },
 
         fetchForm: function() {
@@ -260,6 +273,7 @@ weForms.routeComponents.FormEditComponent = {
                     form_fields: JSON.stringify(self.form_fields),
                     notifications: JSON.stringify(self.notifications),
                     settings: JSON.stringify(self.settings),
+                    payment: JSON.stringify(self.payment),
                     integrations: JSON.stringify(self.integrations),
                 },
 
@@ -303,9 +317,8 @@ weForms.routeComponents.FormEntriesSingle = {
             loading: false,
             entry: {
                 form_fields: {},
-                meta_data: {},
-                info: {}
-            },
+                meta_data: {}
+            }
         };
     },
     created: function() {
@@ -325,6 +338,7 @@ weForms.routeComponents.FormEntriesSingle = {
             wp.ajax.send( 'weforms_form_entry_details', {
                 data: {
                     entry_id: self.$route.params.entryid,
+                    form_id: self.$route.params.id,
                     _wpnonce: weForms.nonce
                 },
                 success: function(response) {
@@ -415,7 +429,7 @@ Vue.component('form-list-table', {
 
                 wp.ajax.send( 'weforms_form_delete', {
                     data: {
-                        form_id: this.items[index].ID,
+                        form_id: this.items[index].id,
                         _wpnonce: weForms.nonce
                     },
                     success: function(response) {
@@ -686,6 +700,7 @@ weForms.routeComponents.Settings = {
             settings: {
                 email_gateway: 'wordpress',
                 credit: false,
+                permission: 'manage_options',
                 gateways: {
                     sendgrid: '',
                     mailgun: '',
@@ -1034,7 +1049,7 @@ var router = new VueRouter({
 });
 
 var app = new Vue({
-    router,
+    router: router,
     store: wpuf_form_builder_store
 }).$mount('#wpuf-contact-form-app')
 
